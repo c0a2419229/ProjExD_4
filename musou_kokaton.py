@@ -381,7 +381,6 @@ def main():
     gravities = pg.sprite.Group() #重力場を管理するグループ
     tmr = 0
     clock = pg.time.Clock()
-    score.value=2000
 
     while True:
         key_lst = pg.key.get_pressed()
