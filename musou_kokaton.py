@@ -101,10 +101,10 @@ class Bird(pg.sprite.Sprite):
 
     # 移動処理
 
-        if key_lst[pg.K_LSHIFT]:
-            self.speed = 20
-        else:
-            self.speed = 10
+        # if key_lst[pg.K_LSHIFT]:
+        #     self.speed = 20
+        # else:
+        #     self.speed = 10
 
         sum_mv = [0, 0]
         for k, mv in __class__.delta.items():
@@ -128,6 +128,7 @@ class Bird(pg.sprite.Sprite):
             self.image = self.imgs[self.dire]  # 通常時は通常画像
 
         screen.blit(self.image, self.rect)
+
 
 class Bomb(pg.sprite.Sprite):
     """
@@ -153,7 +154,7 @@ class Bomb(pg.sprite.Sprite):
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height//2
         self.speed = 6
-        self.state = 'active'
+        self.state = "active"
 
     def update(self):
         """
@@ -195,6 +196,7 @@ class Beam(pg.sprite.Sprite):
         if check_bound(self.rect) != (True, True):
             self.kill()
 
+
 class NeoBeam(pg.sprite.Sprite):
 
     def __init__(self, bird: Bird, num):
@@ -226,9 +228,6 @@ class Explosion(pg.sprite.Sprite):
         self.rect = self.image.get_rect(center=obj.rect.center)
         self.life = life
         
-
-        
-
     def update(self):
         """
         爆発時間を1減算した爆発経過時間_lifeに応じて爆発画像を切り替えることで
@@ -238,8 +237,6 @@ class Explosion(pg.sprite.Sprite):
         self.image = self.imgs[self.life//10%2]
         if self.life < 0:
             self.kill()
-
-            
 
 
 class Enemy(pg.sprite.Sprite):
@@ -268,6 +265,7 @@ class Enemy(pg.sprite.Sprite):
             self.vy = 0
             self.state = "stop"
         self.rect.move_ip(self.vx, self.vy)
+
 
 class EMP(pg.sprite.Sprite):
     def __init__(self, emys, bombs, screen: pg.Surface):
@@ -341,6 +339,8 @@ class Shield(pg.sprite.Sprite):
             self.kill()
         else:
             screen.blit(self.image, self.rect)
+
+
 class Gravity(pg.sprite.Sprite):
     """
     画面全体に覆う重力場を表示
@@ -355,6 +355,7 @@ class Gravity(pg.sprite.Sprite):
         pg.draw.rect(self.image, (0, 0, 0), (0, 0, 1150, 650))
         self.image.set_alpha(100)
         self.rect = self.image.get_rect(topleft=(0, 0))
+
     def update(self):
         """
         lifeを１減算し、０未満になったらkill
@@ -380,6 +381,7 @@ def main():
     gravities = pg.sprite.Group() #重力場を管理するグループ
     tmr = 0
     clock = pg.time.Clock()
+    score.value=2000
 
     while True:
         key_lst = pg.key.get_pressed()
@@ -390,12 +392,13 @@ def main():
                 beams.add(NeoBeam(bird,5).gen_beams())
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
-            if event.type == pg.KEYDOWN and event.key == pg.K_e and score.value >= 0:
+            if event.type == pg.KEYDOWN and event.key == pg.K_e and score.value >= 20:
                 EMP(emys, bombs, screen)
+                score.value-=20
             if event.type == pg.KEYDOWN and event.key == pg.K_s and not pg.sprite.Group(shield) and score.value>=50:
                 shield.add(Shield(bird))
                 score.value-=50
-            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+            if event.type == pg.KEYDOWN and event.key == pg.K_t:
                 if score.value >= 200 and not gravities:
                     gravities.add(Gravity(life=400))
                     score.value -= 200
@@ -421,24 +424,27 @@ def main():
             score.value += 1  # 1点アップ
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):
+            if bomb.state == 'inactive':
+                continue
             if bird.state == "hyper":
                 exps.add(Explosion(bomb, 50))
                 score.value += 1
-
-        for bomb in pg.sprite.spritecollide(bird, bombs, True):
-            if bomb.state == 'inactive':
-                continue
-            bird.change_img(8, screen)
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
+            else:
+                bird.change_img(8, screen)
+                score.update(screen)
+                pg.display.update()
+                time.sleep(2)
+                return
         
-        if gravities:
+        if len(gravities) == 1:
             for gravity_field in gravities:
                 hit_bombs = pg.sprite.spritecollide(gravity_field, bombs, True) 
+                hit_emys = pg.sprite.spritecollide(gravity_field, emys, True) 
                 for bomb_hit_by_gravity in hit_bombs:
-                    exps.add(Explosion(bomb_hit_by_gravity, 50)) 
+                    exps.add(Explosion(bomb_hit_by_gravity, 50))
+                for bomb_hit_by_gravity in hit_emys:
+                    exps.add(Explosion(bomb_hit_by_gravity, 50))  
+
 
         for bomb in pg.sprite.groupcollide(bombs, shield, True, False).keys():
             exps.add(Explosion(bomb, 50))
