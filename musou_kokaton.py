@@ -153,6 +153,7 @@ class Bomb(pg.sprite.Sprite):
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height//2
         self.speed = 6
+        self.state = 'active'
 
     def update(self):
         """
@@ -189,6 +190,7 @@ class Beam(pg.sprite.Sprite):
         ビームを速度ベクトルself.vx, self.vyに基づき移動させる
         引数 screen：画面Surface
         """
+
         self.rect.move_ip(self.speed*self.vx, self.speed*self.vy)
         if check_bound(self.rect) != (True, True):
             self.kill()
@@ -224,6 +226,8 @@ class Explosion(pg.sprite.Sprite):
         if self.life < 0:
             self.kill()
 
+            
+
 
 class Enemy(pg.sprite.Sprite):
     """
@@ -251,6 +255,26 @@ class Enemy(pg.sprite.Sprite):
             self.vy = 0
             self.state = "stop"
         self.rect.move_ip(self.vx, self.vy)
+
+class EMP(pg.sprite.Sprite):
+    def __init__(self, emys, bombs, screen: pg.Surface):
+        super().__init__()
+        self.image = pg.Surface((WIDTH, HEIGHT))
+        self.image.fill((255, 255, 0))
+        self.image.set_alpha(128)
+        self.rect = self.image.get_rect()
+        
+        for emy in emys:
+            emy.interval = math.inf
+            emy.image = pg.transform.laplacian(emy.image)
+
+        for bomb in bombs:
+            bomb.speed /= 2
+            bomb.state = "inactive"
+        
+        screen.blit(self.image,self.rect)
+        pg.display.update()
+        time.sleep(0.05)
 
 
 class Score:
@@ -304,6 +328,27 @@ class Shield(pg.sprite.Sprite):
             self.kill()
         else:
             screen.blit(self.image, self.rect)
+class Gravity(pg.sprite.Sprite):
+    """
+    画面全体に覆う重力場を表示
+    """
+    def __init__(self, life: int):
+        """
+        life：フレーム数
+        """
+        super().__init__()
+        self.life = life
+        self.image = pg.Surface((1100, 650))
+        pg.draw.rect(self.image, (0, 0, 0), (0, 0, 1150, 650))
+        self.image.set_alpha(100)
+        self.rect = self.image.get_rect(topleft=(0, 0))
+    def update(self):
+        """
+        lifeを１減算し、０未満になったらkill
+        """
+        self.life -= 1
+        if self.life <= 0:
+            self.kill()
 
 
 def main():
@@ -319,8 +364,10 @@ def main():
     emys = pg.sprite.Group()
     shield = pg.sprite.Group()
 
+    gravities = pg.sprite.Group() #重力場を管理するグループ
     tmr = 0
     clock = pg.time.Clock()
+
     while True:
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
@@ -328,9 +375,15 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_e and score.value >= 0:
+                EMP(emys, bombs, screen)
             if event.type == pg.KEYDOWN and event.key == pg.K_s and not pg.sprite.Group(shield) and score.value>=50:
                 shield.add(Shield(bird))
                 score.value-=50
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                if score.value >= 200 and not gravities:
+                    gravities.add(Gravity(life=400))
+                    score.value -= 200
         screen.blit(bg_img, [0, 0])
 
 
@@ -355,12 +408,21 @@ def main():
             if bird.state == "hyper":
                 exps.add(Explosion(bomb, 50))
                 score.value += 1
+
+        for bomb in pg.sprite.spritecollide(bird, bombs, True):
+            if bomb.state == 'inactive':
                 continue
             bird.change_img(8, screen)
             score.update(screen)
             pg.display.update()
             time.sleep(2)
             return
+        
+        if gravities:
+            for gravity_field in gravities:
+                hit_bombs = pg.sprite.spritecollide(gravity_field, bombs, True) 
+                for bomb_hit_by_gravity in hit_bombs:
+                    exps.add(Explosion(bomb_hit_by_gravity, 50)) 
 
         for bomb in pg.sprite.groupcollide(bombs, shield, True, False).keys():
             exps.add(Explosion(bomb, 50))
@@ -371,6 +433,8 @@ def main():
         beams.draw(screen)
         emys.update()
         emys.draw(screen)
+        gravities.update() # 重力場の更新
+        gravities.draw(screen) # 重力場の描画
         bombs.update()
         bombs.draw(screen)
         exps.update()
