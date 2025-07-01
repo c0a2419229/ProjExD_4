@@ -265,6 +265,10 @@ class Shield(pg.sprite.Sprite):
         self.image.set_colorkey((0, 0, 0))
         
     def update(self, screen: pg.Surface):
+        """
+        シールドの表示と表示時間
+        引数 screen:画像Surface
+        """
         self.life -= 1
         if self.life < 0:
             self.kill()
