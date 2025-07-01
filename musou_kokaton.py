@@ -226,7 +226,6 @@ class Enemy(pg.sprite.Sprite):
             self.state = "stop"
         self.rect.move_ip(self.vx, self.vy)
 
-
 class EMP(pg.sprite.Sprite):
     def __init__(self, emys, bombs, screen: pg.Surface):
         super().__init__()
