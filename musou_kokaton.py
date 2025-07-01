@@ -242,6 +242,29 @@ class Score:
         screen.blit(self.image, self.rect)
 
 
+class Gravity(pg.sprite.Sprite):
+    """
+    画面全体に覆う重力場を表示
+    """
+    def __init__(self, life: int):
+        """
+        life：フレーム数
+        """
+        super().__init__()
+        self.life = life
+        self.image = pg.Surface((1100, 650))
+        pg.draw.rect(self.image, (0, 0, 0), (0, 0, 1150, 650))
+        self.image.set_alpha(100)
+        self.rect = self.image.get_rect(topleft=(0, 0))
+    def update(self):
+        """
+        lifeを１減算し、０未満になったらkill
+        """
+        self.life -= 1
+        if self.life <= 0:
+            self.kill()
+
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -253,9 +276,10 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
-
+    gravities = pg.sprite.Group() #重力場を管理するグループ
     tmr = 0
     clock = pg.time.Clock()
+
     while True:
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
@@ -263,6 +287,10 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                if score.value >= 200 and not gravities:
+                    gravities.add(Gravity(life=400))
+                    score.value -= 200
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -288,12 +316,20 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
+        
+        if gravities:
+            for gravity_field in gravities:
+                hit_bombs = pg.sprite.spritecollide(gravity_field, bombs, True) 
+                for bomb_hit_by_gravity in hit_bombs:
+                    exps.add(Explosion(bomb_hit_by_gravity, 50)) 
 
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
         emys.update()
         emys.draw(screen)
+        gravities.update() # 重力場の更新
+        gravities.draw(screen) # 重力場の描画
         bombs.update()
         bombs.draw(screen)
         exps.update()
