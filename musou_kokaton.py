@@ -121,11 +121,14 @@ class Bird(pg.sprite.Sprite):
         if self.state == "hyper":
             self.hyper_life -= 1
             self.image = pg.transform.laplacian(self.imgs[self.dire])
-        elif self.hyper_life < 0:
-            self.state = "normal"
-            self.image = self.imgs[self.dire]
+
         else:
             self.image = self.imgs[self.dire]  # 通常時は通常画像
+        if self.hyper_life < 0:
+            self.state = "normal"
+            self.image = self.imgs[self.dire]
+        # else:
+        #     self.image = self.imgs[self.dire]  # 通常時は通常画像
 
         screen.blit(self.image, self.rect)
 
@@ -381,6 +384,7 @@ def main():
     gravities = pg.sprite.Group() #重力場を管理するグループ
     tmr = 0
     clock = pg.time.Clock()
+    score.value=2000
 
     while True:
         key_lst = pg.key.get_pressed()
