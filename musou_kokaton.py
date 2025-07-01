@@ -72,6 +72,7 @@ class Bird(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = xy
         self.speed = 10
+        
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -88,6 +89,12 @@ class Bird(pg.sprite.Sprite):
         引数1 key_lst：押下キーの真理値リスト
         引数2 screen：画面Surface
         """
+
+        if key_lst[pg.K_LSHIFT]:
+            self.speed = 20
+        else:
+            self.speed = 10
+
         sum_mv = [0, 0]
         for k, mv in __class__.delta.items():
             if key_lst[k]:
@@ -266,6 +273,61 @@ class Score:
         screen.blit(self.image, self.rect)
 
 
+class Shield(pg.sprite.Sprite):
+    """
+    防御壁に関するクラス
+    """
+    def __init__(self, bird: Bird, life = 400):
+        """
+        防御壁を作成する
+        引数1 bird：付与対象のこうかとん
+        引数2 life：発動時間
+        """ 
+        super().__init__()
+        self.image = pg.Surface((10, 2*(bird.rect.bottom-bird.rect.top)))
+        pg.draw.rect(self.image, (0, 0, 255), (0, 0, 10, 2*(bird.rect.bottom-bird.rect.top)))
+        self.life = life
+        self.vx, self.vy = bird.dire
+        angle = math.degrees(math.atan2(-self.vy, self.vx))
+        self.image = pg.transform.rotozoom(self.image, angle, 1.0)
+        self.rect = self.image.get_rect()
+        self.rect.centery = bird.rect.centery+bird.rect.height*self.vy
+        self.rect.centerx = bird.rect.centerx+bird.rect.width*self.vx
+        self.image.set_colorkey((0, 0, 0))
+        
+    def update(self, screen: pg.Surface):
+        """
+        シールドの表示と表示時間
+        引数 screen:画像Surface
+        """
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+        else:
+            screen.blit(self.image, self.rect)
+class Gravity(pg.sprite.Sprite):
+    """
+    画面全体に覆う重力場を表示
+    """
+    def __init__(self, life: int):
+        """
+        life：フレーム数
+        """
+        super().__init__()
+        self.life = life
+        self.image = pg.Surface((1100, 650))
+        pg.draw.rect(self.image, (0, 0, 0), (0, 0, 1150, 650))
+        self.image.set_alpha(100)
+        self.rect = self.image.get_rect(topleft=(0, 0))
+    def update(self):
+        """
+        lifeを１減算し、０未満になったらkill
+        """
+        self.life -= 1
+        if self.life <= 0:
+            self.kill()
+
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -277,9 +339,12 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    shield = pg.sprite.Group()
 
+    gravities = pg.sprite.Group() #重力場を管理するグループ
     tmr = 0
     clock = pg.time.Clock()
+
     while True:
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
@@ -289,7 +354,15 @@ def main():
                 beams.add(Beam(bird))
             if event.type == pg.KEYDOWN and event.key == pg.K_e and score.value >= 0:
                 EMP(emys, bombs, screen)
+            if event.type == pg.KEYDOWN and event.key == pg.K_s and not pg.sprite.Group(shield) and score.value>=50:
+                shield.add(Shield(bird))
+                score.value-=50
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                if score.value >= 200 and not gravities:
+                    gravities.add(Gravity(life=400))
+                    score.value -= 200
         screen.blit(bg_img, [0, 0])
+
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
             emys.add(Enemy())
@@ -317,12 +390,24 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
+        
+        if gravities:
+            for gravity_field in gravities:
+                hit_bombs = pg.sprite.spritecollide(gravity_field, bombs, True) 
+                for bomb_hit_by_gravity in hit_bombs:
+                    exps.add(Explosion(bomb_hit_by_gravity, 50)) 
 
+        for bomb in pg.sprite.groupcollide(bombs, shield, True, False).keys():
+            exps.add(Explosion(bomb, 50))
+
+        shield.update(screen)
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
         emys.update()
         emys.draw(screen)
+        gravities.update() # 重力場の更新
+        gravities.draw(screen) # 重力場の描画
         bombs.update()
         bombs.draw(screen)
         exps.update()
