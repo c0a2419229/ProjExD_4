@@ -242,6 +242,36 @@ class Score:
         screen.blit(self.image, self.rect)
 
 
+class Shield(pg.sprite.Sprite):
+    """
+    防御壁に関するクラス
+    """
+    def __init__(self, bird: Bird, life = 400):
+        """
+        防御壁を作成する
+        引数1 bird：付与対象のこうかとん
+        引数2 life：発動時間
+        """ 
+        super().__init__()
+        self.image = pg.Surface((10, 2*(bird.rect.bottom-bird.rect.top)))
+        pg.draw.rect(self.image, (0, 0, 255), (0, 0, 10, 2*(bird.rect.bottom-bird.rect.top)))
+        self.life = life
+        self.vx, self.vy = bird.dire
+        angle = math.degrees(math.atan2(-self.vy, self.vx))
+        self.image = pg.transform.rotozoom(self.image, angle, 1.0)
+        self.rect = self.image.get_rect()
+        self.rect.centery = bird.rect.centery+bird.rect.height*self.vy
+        self.rect.centerx = bird.rect.centerx+bird.rect.width*self.vx
+        self.image.set_colorkey((0, 0, 0))
+        
+    def update(self, screen: pg.Surface):
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+        else:
+            screen.blit(self.image, self.rect)
+
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -253,6 +283,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    shield = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -263,7 +294,11 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_s and not pg.sprite.Group(shield) and score.value>=50:
+                shield.add(Shield(bird))
+                score.value-=50
         screen.blit(bg_img, [0, 0])
+
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
             emys.add(Enemy())
@@ -289,6 +324,10 @@ def main():
             time.sleep(2)
             return
 
+        for bomb in pg.sprite.groupcollide(bombs, shield, True, False).keys():
+            exps.add(Explosion(bomb, 50))
+
+        shield.update(screen)
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
