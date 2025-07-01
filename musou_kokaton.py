@@ -174,7 +174,8 @@ class NeoBeam(pg.sprite.Sprite):
 
     def gen_beams(self):
         beams = []
-        for i in range(-50, +51, 25):
+        x = int(100 / (self.num - 1))
+        for i in range(-50, +51, x):
             beams.append(Beam(self.bird, i))
         return beams
 
